@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>{% block title %}{% endblock %}</title>
+        <link rel="icon" type="text/css" href="{{ url_for('static', filename='favicon.ico') }}"  />
+        <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='site.css') }}"  />
+        <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='modal.css') }}"  />
+        <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='tab.css') }}"  />
+        <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='dropdown.css') }}"  />
+        <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='slider.css') }}"  />
+        <link rel="stylesheet" type="text/css" href="{{ bower_url_for(component='swiper', filename='dist/css/swiper.min.css') }}"  />
+        
+        <script>
+        
+            var playImage = "{{ url_for('static', filename='play.svg') }}";
+    
+        </script>
+
+        <script type="text/javascript" src="{{ bower_url_for(component='jquery', filename='dist/jquery.min.js') }}"></script>     
+        <script type="text/javascript" src="{{ bower_url_for(component='jquery.cookie', filename='jquery.cookie.js') }}"></script>     
+        <script type="text/javascript" src="{{ bower_url_for(component='swiper', filename='dist/js/swiper.min.js') }}"></script>     
+        <script type="text/javascript" src="{{ bower_url_for(component='chart.js', filename='dist/Chart.min.js') }}"></script>     
+       <script type="text/javascript" src="{{ url_for('static', filename='main.js') }}"></script>     
+    </head>
+
+    <body>
+        <div class='main' style="width: 12%; height:12%; overflow:hidden;">
+            <div style="position: absolute; overflow:hidden; top:0px; bottom:0px; left:0px; right:0px; background: url('{{ url_for('static', filename='background.jpg') }}'); background-size: cover;  background-repeat: no-repeat;">
+                <img src="{{ url_for('static', filename='compass.svg') }}" style="position:absolute; top:6px; left:5px;width:76px; height:76px; " alt="App"/>
+                <div id='toolbar'>
+                    <div style="position:absolute; top:18px; left:94px; font-weight:bold; font-size: 32px;  color:rgba(255,255,255,0.9)"><label>CanLog: Upload Manager</label></div>
+                    <div style="position:absolute; top:16px; right:100px; height:30px; padding-top:8px; padding-left:4px; font-weight:medium; font-size: 16px;  width:400px; background-color: rgba(255,255,255, 0.30); color:rgb(15, 98, 110); border:2px solid rgb(15, 98, 110); ">
+                        <label id="folder"></label>
+                    </div>
+                    <button class='button' id="folders" style="position:absolute; right:50px; margin-top:12px; ">
+                        <img src="{{ url_for('static', filename='down-arrow.svg') }}" style="padding-top:6px; margin:auto; width:16px; height:16px; text-align:center;" alt="Refresh"/>
+                    </button>
+
+                    <div id='layout'> 
+                        <span class='tool'>
+                            <button class='button' id="refresh" style="position:absolute; right:10px; margin-top:12px;">
+                                <img src="{{ url_for('static', filename='refresh.svg') }}" style="padding-top:6px; margin:auto; width:16px; height:16px; text-align:center;" alt="Refresh"/>
+                            </button>
+                        </span>
+                    </div>           
+                </div>
+                
+                {% block content %}
+                {% endblock %}
+
+            <div id='dropdown' class='dropdown-content'></div>
+            
+             <div id='waitDialog' class='modal'>
+                <div style="position:fixed; text-align: center; top:50%; left:48%; margin-left:0px; margin-top:-100px;">
+                    <div class='loader'></div>
+               </div>
+               <div id='waitMessage' style="position:absolute; top:60%; color:rgba(255,255,255, 1.0); text-align: center; width:100%;"></div>
+  
+            </div> 
+       
+    </body>
+</html>
