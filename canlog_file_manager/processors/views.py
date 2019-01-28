@@ -189,9 +189,7 @@ def store(file_name, folder, timestamp, guid, zip_file_name):
 
 def process(f, file_name):
    parser = CanlogParser(f)
-
    parser.parse(file_name)
-
    return parser.getSummary()
 
 def log(f, message):
