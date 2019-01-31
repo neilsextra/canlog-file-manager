@@ -9,8 +9,6 @@ import argparse
 import csv
 import io
 import re
-import zlib
-from zipfile import ZipFile
 import json
 import threading
 import datetime
@@ -94,16 +92,27 @@ class CanlogParser:
             __self.__orgName = file.read(32)    
             __self.__projectName = file.read(32)    
             __self.__subjectName = file.read(32)    
-            __self.__timeStamp = file.read(8)    
-            __self.__timeOffset = file.read(4)    
-            __self.__timeQualityPass = file.read(4)    
-            __self.__timeIdentification = file.read(32)   
+            julianTime = datetime.datetime.strptime(__self.__recordingDate.decode('ascii') + ' ' +
+                                                    __self.__recordingTime.decode('ascii'), "%d:%m:%Y %H:%M:%S").timestamp()
+            __self.__timestamp = re.sub('\..*$', '', str(julianTime))
                  
    def getSummary(__self):
+      print("HD Block: " + (__self.__headerHD.decode('ascii')))
+      print("file_identifier: " + (__self.__fileIdentifier.decode('ascii')))
+      print("formatIdentifier: " + (__self.__formatIdentifier.decode('ascii')))
+      print("versionNumber: " + str(struct.unpack("H",  __self.__versionNumber)[0]))
+      print("recordingDate: " +__self.__recordingDate.decode('ascii'))
+      print("recordingTime: " +__self.__recordingTime.decode('ascii'))
+      print("recordingTime: " +__self.__recordingTime.decode('ascii'))
+      print("julianTime: " + __self.__timestamp)
+       
       summary = {
-         "file_identifier": __self.__fileIdentifier,
-         "format_identifier": __self.__formatIdentifier, 
-         "_versionNumber": struct.unpack("H",  __self.__versionNumber)[0]
+         "file_identifier": __self.__fileIdentifier.decode('ascii') ,
+         "format_identifier": __self.__formatIdentifier.decode('ascii'), 
+         "versionNumber": str(struct.unpack("H",  __self.__versionNumber)[0]),
+         "recordingDate": __self.__recordingDate.decode('ascii'),
+         "recordingTime": __self.__recordingTime.decode('ascii'),
+         "timestamp": __self.__timestamp
       } 
 
       return summary
@@ -160,36 +169,40 @@ def getConfiguration():
       
    }   
 
-def store(file_name, folder, timestamp, guid, zip_file_name):
+def store(f, file_name, summary):
    configuration = getConfiguration()
 
-   f = open(configuration['debug_file'], 'a')
    log(f, 'Account Name: ' + configuration['account_name'])
    log(f, 'Container Name: ' + configuration['container_name'])
    
    account = CloudStorageAccount(account_name=configuration['account_name'], 
                                  account_key=configuration['account_key'])
- 
+   
+   folder =  configuration['default_folder_name']
+
    service = account.create_block_blob_service()
 
    service.create_container(configuration['container_name']) 
    
    log(f, 'Storing Content')
 
-   service.create_blob_from_stream(configuration['container_name'], folder + '/' + timestamp + '/output.csv.gz',
-                                             io.BytesIO(zlib.compress(content.encode())))
+   service.create_blob_from_stream(configuration['container_name'],  folder + '/' + summary['timestamp'] + '/summary.json',
+                                   io.BytesIO(json.dumps(summary).encode()))
 
-       
+                                                  
+   log(f, 'Stored: ' + file_name)       
    os.remove(file_name)
 
-   log(f, 'Completed (Zip) : ' + file_name + ' - ' + folder + ' - ' + timestamp)
+   log(f, 'Completed (Log) : ' + file_name + ' - ' + configuration['default_folder_name'] + ' - ' + summary['timestamp'])
 
    return
 
 
-def process(f, file_name):
+def process_canlog(f, file_name):
+   print('Process_canlog: ' + file_name)
    parser = CanlogParser(f)
    parser.parse(file_name)
+  
    return parser.getSummary()
 
 def log(f, message):
@@ -253,11 +266,10 @@ def list():
 @views.route("/retrieve", methods=["GET"])
 def retrieve():
    timestamp = request.args.get('timestamp')
-   name = request.args.get('name')
 
    configuration = getConfiguration()
    f = open(configuration['debug_file'], 'a')
-   log(f, 'Retrieving - ' + name + '/' + timestamp)
+   log(f, 'Retrieving - ' + timestamp)
 
    configuration = getConfiguration()
 
@@ -269,13 +281,11 @@ def retrieve():
    stream = io.BytesIO()
 
    service.get_blob_to_stream(container_name=configuration['container_name'], 
-                                   blob_name=name + '/' + timestamp + '/output.csv.gz', stream=stream)
+                                   blob_name=configuration['default_folder_name'] + '/' + timestamp + '/can.json', stream=stream)
 
-   content = zlib.decompress(stream.getbuffer())
+   log(f, 'Retrieved - ' + timestamp)
 
-   log(f, 'Retrieved - ' + name + '/' + timestamp)
-
-   return content
+   return stream.getbuffer()
 
 @views.route("/commit", methods=["GET"])
 def commit():
@@ -283,11 +293,12 @@ def commit():
       configuration = getConfiguration()
 
       guid = request.values.get('guid')
-      folder = configuration['default_folder']
+      folder = configuration['default_folder_name']
+      
+      print('GUID: ' + guid)
 
       blob_name = folder + '/' + guid + ".log"
 
- 
       f = open(configuration['debug_file'], 'a')
 
       log(f, 'Committing: ' +  blob_name)
@@ -323,12 +334,44 @@ def process():
    output = []
    
    try:
+      print('inside process [1]')
       configuration = getConfiguration()
-      f = open(configuration['debug_file'], 'a')
-       
-      file_name = request.args.get('file_name')
 
-      summary = process(f, file_name)
+      f = open(configuration['debug_file'], 'a')
+
+      guid = request.values.get('guid')
+
+      print('inside process [2]')
+
+      folder = configuration['default_folder_name']
+      print('inside process [3] ' + folder)
+
+      blob_name = folder + '/' + guid + ".log"
+
+      print('inside process [3] ' + blob_name)
+
+      file_name = request.args.get('file_name')
+      
+      print('inside process [4] ' + file_name)
+    
+      summary = process_canlog(f, file_name)
+
+      target_blob_name = folder + '/' + summary['timestamp'] + '/' + 'can.log'
+      
+      print('inside process [4] ' + target_blob_name)
+     
+      log(f, 'Renaming blob : ' + target_blob_name) 
+      
+      account = CloudStorageAccount(account_name=configuration['account_name'], 
+                                    account_key=configuration['account_key'])
+   
+      service = account.create_block_blob_service()
+      blob_url = service.make_blob_url(configuration['container_name'], blob_name)
+      service.copy_blob(configuration['container_name'], target_blob_name, blob_url)
+      
+      log(f, 'Deleting temporary blob : ' + blob_name) 
+ 
+      store(f, file_name, summary)
 
       return json.dumps(summary).encode()
 
@@ -347,11 +390,12 @@ def upload():
    configuration = getConfiguration()
 
    temp_file_name = request.values.get('file_name')
+
    guid = request.values.get('guid')
    folder = configuration['default_folder_name']
    chunk = request.values.get('chunk')
 
-   blob_name = folder + '/' + guid + ".zip"
+   blob_name = folder + '/' + guid + ".log"
 
    f = open(configuration['debug_file'], 'a')
    
@@ -371,7 +415,7 @@ def upload():
 
    buffer = fileContent.read()
 
-   if (temp_file_name == ''):
+   if (temp_file_name == None or temp_file_name == ''):
       with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
          temp_file_name = tmpfile.name
 
@@ -385,7 +429,7 @@ def upload():
          guid = str(uuid.uuid4())
          log(f, 'UUID allocated - ' + guid)
 
-         blob_name = folder + '/' + guid + ".zip"
+         blob_name = folder + '/' + guid + ".log"
          log(f, 'blob_name - ' + blob_name)
 
          service.create_container(configuration['container_name']) 
@@ -398,6 +442,7 @@ def upload():
          temp.write(buffer)
          temp.close()
   
+   print(temp_file_name + ' - ' + guid)
    service.put_block(configuration['container_name'], blob_name, buffer, chunk.zfill(32))
 
    output.append({

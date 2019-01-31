@@ -274,7 +274,7 @@ function generateStatusSlide(folder, timestamp) {
         "<div style='position:absolute; left:3px; top:5px; right:3px;'>" +
         "<table style='color:black;font-family: monospace; font-size: 12px;'>" +
         "<tr><td><label style='color:white; font-family: monospace; font-size: 14px; font-weight:bold'>" + 
-        (new Date(Math.trunc(timestamp) * 1000)) +
+        (new Date(Math.trunc(timestamp))) +
          "</label></td>" +  
         "</tr>" + 
         "</table>" +
@@ -560,14 +560,14 @@ $(document).ready(function() {
         
     }
 
-    function chunkData(filename, video) {
-        var maxChunks = Math.floor(video.byteLength / CHUNK_SIZE);
+    function chunkData(filename, canlog) {
+        var maxChunks = Math.floor(canlog.byteLength / CHUNK_SIZE);
 
         $('#waitDialog').css('display', 'inline-block');
-        $('#waitMessage').text('Chunking Data : ' + video.byteLength);
-        console.log('Chunking Data : ' + video.byteLength);
+        $('#waitMessage').text('Chunking Data : ' + canlog.byteLength);
+        console.log('Chunking Data : ' + canlog.byteLength);
         
-        sendData(filename, video, maxChunks).then(function(result) {
+        sendData(filename, canlog, maxChunks).then(function(result) {
             
             if (result.status != 'OK') {
                 
@@ -578,32 +578,24 @@ $(document).ready(function() {
             }
 
             var guid = result.guid;
+            var tempFilename = result.tempFilename;
 
             $('#waitMessage').text(`Committing : '${filename}' - ${guid}`);
-
+ 
             var parameters = {filename: filename,
-                            guid: guid};
-    
+                              file_name: tempFilename,
+                              guid: guid};
+            
             $.get('/commit', parameters, function(result) {
                 $('#waitMessage').text('Processing : ' + filename);
-
+ 
                 $.get('/process', parameters, function(result) {
 
-                    retrieveAll(function(html) {   
-                        $('#swiper-wrapper').html(html);
-                        $('#swiper-container').css('visibility', 'visible');  
-                        
-                        swiper = createSwipperControl();
+                    refreshView(function() {
                         $('#waitMessage').text('');
                         $('#waitDialog').css('display', 'none');
-                        $('#player').css('display', 'none');  
-                        $('#placeHolder').css('display', 'inline-block');  
-        
-                        $('#swiper-container').css('visibility', 'visible');
-                        $('#waitDialog').css('display', 'none');    
-                    
-                    });                  
-        
+                    });    
+
                 }).fail(function(code, err) {
                     alert(err); 
                     $('#waitMessage').text('');
@@ -630,31 +622,102 @@ $(document).ready(function() {
      * @param {integer} maxChunks Number of Posts to deliver the Video
      * 
      */
-    async function sendData(filename, video, maxChunks) {
+    async function sendData(filename, canlog, maxChunks) {
         var currentChunk = 0;
         var guid = '';
+        var tempFilename = '';
 
-        console.log(`sendData: ${filename} - ${video.byteLength}`);
+        console.log(`sendData: ${filename} - ${canlog.byteLength}`);
 
-        for (var iChunk=0, len = video.byteLength; iChunk<len; iChunk += CHUNK_SIZE) {   
-            var chunk = video.slice(iChunk, iChunk + CHUNK_SIZE); 
+        for (var iChunk=0, len = canlog.byteLength; iChunk < len; iChunk += CHUNK_SIZE) {   
+            var chunk = canlog.slice(iChunk, iChunk + CHUNK_SIZE); 
 
             console.log(`Posting: ${filename} - ${guid}`);
 
-            var result = await postData(filename, guid, chunk, currentChunk, maxChunks);
+            var result = await postData(filename, guid, tempFilename, chunk, currentChunk, maxChunks);
 
-            console.log(`Uploaded  - [${currentChunk}/${maxChunks}] + ":" + ${result.guid} - '${filename}`);
+            console.log(`Uploaded  - [${currentChunk}/${maxChunks}] + ":" + ${guid} - '${filename}`);
 
             currentChunk += 1;
-
-            guid = result.guid;
-
+            guid = result[0].guid;
+            tempFilename = result[0].file_name;
+        
         }
 
         return {
             status: 'OK',
-            guid: guid
+            guid: guid,
+            tempFilename: tempFilename
         }
+
+    }
+
+    /**
+     * Post the Data to the Server in Chunks
+     * 
+     * @param {string} filename Canlog's Filename
+     * @param {string} guid Canlog's Unique ID - allocated by Server
+     * @param {string} tempFilename Canlog's FileName - allocated by Server
+     * @param {ArrayBuffer} chunk the Video Content
+     * @param {integer} currentChunk Current Chunk Index
+     * @param {integer} maxChunks Number of Posts to deliver the Video
+     * 
+     */
+    function postData(filename, guid, tempFilename, chunk, currentChunk, maxChunks) {    
+        var canlogContent = null;
+        
+        console.log(`Posting Data: ${filename}`);
+    
+        try {
+            canlogContent = new File([chunk], filename);
+        } catch (e) {
+            canlogContent = new Blob([chunk], filename); 
+        }
+
+        var formData = new FormData();
+        formData.append('filename', filename);  
+        formData.append('file_name', tempFilename);  
+        formData.append('guid', guid);  
+        formData.append('chunk', `${currentChunk}`);
+        formData.append(filename, canlogContent);
+
+        return new Promise(resolve => {$.ajax({
+            url: '/upload',
+            type: 'POST',
+            maxChunkSize: 10000,
+            contentType: false,
+            processData: false,
+            async: true,
+            data: formData,
+                xhr: function() {
+                    var xhr = $.ajaxSettings.xhr();
+
+                    xhr.upload.addEventListener('progress', function (event) {
+                        if (event.lengthComputable) {
+                            var percentComplete = event.loaded / event.total;                          }
+                    }, false);
+
+                    xhr.upload.addEventListener('load', function (event) {
+                    }, false);
+
+                    return xhr;
+
+                },
+                error: function (err) {
+                    console.log(`Error: [${err.status }] - ' ${err.statusText}'`); 
+                    alert(`Error: [${err.status }] - ' ${err.statusText}'`);
+                    resolve(err);
+
+                },
+                success: function (result) {  
+                    $('#waitMessage').text(`Sending  - ${currentChunk}/${maxChunks}`);
+                    console.log(`Resolved: ${result}`);
+                    resolve(JSON.parse(result));
+
+                }
+            });
+
+        });
 
     }
 
