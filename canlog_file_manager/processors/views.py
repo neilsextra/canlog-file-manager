@@ -250,11 +250,9 @@ def send_message(message):
                                  account_key=configuration['account_key'])
 
    service = account.create_queue_service()
-
    service.create_queue(configuration['queue_name'])
-
    service.put_message(configuration['queue_name'], message)
-
+   
 def log(f, message):
    f.write(str(datetime.datetime.now()))
    f.write(' : ')
@@ -416,14 +414,12 @@ def process():
       blob_url = service.make_blob_url(configuration['container_name'], blob_name)
       service.copy_blob(configuration['container_name'], target_blob_name, blob_url)
       
-      log(f, 'Deleting temporary blob : ' + blob_name) 
-   
+      log(f, 'Deleting temporary blob : ' + blob_name)  
       service.delete_blob(configuration['container_name'], blob_name)
-
       log(f, 'Storing Summary ' + blob_name) 
       store(f, file_name, summary)
       log(f, 'Sending Message ' + configuration['queue_name']) 
-      send_message(json.dumps(summary).encode())
+      send_message(json.dumps(summary))
       log(f, 'Sent Message ' + configuration['queue_name']) 
 
       return json.dumps(summary).encode()

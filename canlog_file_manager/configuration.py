@@ -6,4 +6,4 @@ DEBUG_FILE = 'debug.log'
 DEFAULT_FOLDER_NAME = 'logs'
 STAGING_DIR = 'C:\\Temp'
 THRESHOLD = 10000
-QUEUE_NAME = 'canlog_upload'
+QUEUE_NAME = 'canupload'
