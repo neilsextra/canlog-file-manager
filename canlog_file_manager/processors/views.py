@@ -17,6 +17,7 @@ import os
 import tempfile
 import uuid
 import azure.storage.blob
+import azure.storage.queue
 import string
 import multiprocessing as mp
 import gc
@@ -50,6 +51,9 @@ class CanlogParser:
       __self.__timeOffset = None    
       __self.__timeQualityPass = None    
       __self.__timeIdentification = None  
+      __self.__numberOfChannels = None  
+      __self.__sizeOfDataRecord = None
+      __self.__numberOfRecords = None  
    
    def log(__self, message):
       __self.__file.write(str(datetime.datetime.now()))
@@ -92,26 +96,59 @@ class CanlogParser:
             __self.__orgName = file.read(32)    
             __self.__projectName = file.read(32)    
             __self.__subjectName = file.read(32)    
+            
             julianTime = datetime.datetime.strptime(__self.__recordingDate.decode('ascii') + ' ' +
                                                     __self.__recordingTime.decode('ascii'), "%d:%m:%Y %H:%M:%S").timestamp()
             __self.__timestamp = re.sub('\..*$', '', str(julianTime))
-                 
+
+            file.seek(struct.unpack("I", __self.__linkDGB)[0])
+
+            blockIdentifierDG  = file.read(2)
+            blockSizeDG  = file.read(2)
+
+            nextDGBlock = file.read(4)
+            nextCGBlock = file.read(4)
+
+            file.seek(struct.unpack("I", nextCGBlock)[0])
+
+            print ("  Tell: ", file.tell())
+
+            blockIdentifierCG  = file.read(2)
+            blockSizeCG  = file.read(2)
+            nextCGBlock = file.read(4)
+            nextCNBlock = file.read(4)
+            nextTXTXock = file.read(4)
+            recordIDCount = file.read(2)
+            __self.__numberOfChannels = file.read(2)
+            __self.__sizeOfDataRecord = file.read(2)
+            __self.__numberOfRecords = file.read(4)
+
+   def clean(__self, value): 
+      return re.sub(r'[^a-zA-Z0-9\\W]',r'', value.decode('ascii'))
+
    def getSummary(__self):
-      print("HD Block: " + (__self.__headerHD.decode('ascii')))
-      print("file_identifier: " + (__self.__fileIdentifier.decode('ascii')))
-      print("formatIdentifier: " + (__self.__formatIdentifier.decode('ascii')))
-      print("versionNumber: " + str(struct.unpack("H",  __self.__versionNumber)[0]))
-      print("recordingDate: " +__self.__recordingDate.decode('ascii'))
-      print("recordingTime: " +__self.__recordingTime.decode('ascii'))
-      print("recordingTime: " +__self.__recordingTime.decode('ascii'))
-      print("julianTime: " + __self.__timestamp)
+      __self.log("HD Block: " + (__self.__headerHD.decode('ascii')))
+      __self.log("file_identifier: " + __self.clean(__self.__fileIdentifier))
+      __self.log("formatIdentifier: " + __self.clean(__self.__formatIdentifier))
+      __self.log("programIdentifier: " + __self.clean(__self.__programIdentifier))
+      __self.log("authorsName: " + (__self.clean(__self.__authorsName)))
+      __self.log("versionNumber: " + str(struct.unpack("H",  __self.__versionNumber)[0]))
+      __self.log("recordingDate: " + __self.__recordingDate.decode('ascii'))
+      __self.log("recordingTime: " + __self.__recordingTime.decode('ascii'))
+      __self.log("numberOfChannels: " + str(struct.unpack("<H",  __self.__numberOfChannels)[0]))
+      __self.log("numberOfRecords: " + str(struct.unpack("<I",  __self.__numberOfRecords)[0]))
+      __self.log("julianTime: " + __self.__timestamp)
        
       summary = {
-         "file_identifier": __self.__fileIdentifier.decode('ascii') ,
-         "format_identifier": __self.__formatIdentifier.decode('ascii'), 
+         "file_identifier": __self.clean(__self.__fileIdentifier),
+         "format_identifier": __self.clean(__self.__formatIdentifier), 
+         "authorsName": __self.clean(__self.__authorsName), 
+         "programIdentifier": __self.clean(__self.__programIdentifier), 
          "versionNumber": str(struct.unpack("H",  __self.__versionNumber)[0]),
          "recordingDate": __self.__recordingDate.decode('ascii'),
          "recordingTime": __self.__recordingTime.decode('ascii'),
+         "numberOfChannels": str(struct.unpack("<H",  __self.__numberOfChannels)[0]),
+         "numberOfRecords": str(struct.unpack("<I",  __self.__numberOfRecords)[0]),
          "timestamp": __self.__timestamp
       } 
 
@@ -126,6 +163,7 @@ def getConfiguration():
    socket_timeout = None
    staging_dir = None
    debug_file = None
+   queue_name = None
 
    try:
       import canlog_file_manager.configuration as config
@@ -137,6 +175,7 @@ def getConfiguration():
       socket_timeout = config.SOCKET_TIMEOUT
       debug_file = config.DEBUG_FILE
       staging_dir = config.STAGING_DIR
+      queue_name = config.QUEUE_NAME
    
    except ImportError:
       pass
@@ -156,6 +195,7 @@ def getConfiguration():
    socket_timeout = environ.get('SOCKET_TIMEOUT', socket_timeout)
    debug_file = environ.get('DEBUG_FILE', debug_file)
    staging_dir = environ.get('STAGING_DIR', staging_dir)
+   queue_name = environ.get('QUEUE_NAME', queue_name)
 
    return {
       "account_key": account_key,
@@ -165,8 +205,8 @@ def getConfiguration():
       'save_files': save_files,
       'socket_timeout': socket_timeout,
       'debug_file': debug_file,
-      'staging_dir': staging_dir
-      
+      'staging_dir': staging_dir,
+      'queue_name': queue_name
    }   
 
 def store(f, file_name, summary):
@@ -188,22 +228,32 @@ def store(f, file_name, summary):
 
    service.create_blob_from_stream(configuration['container_name'],  folder + '/' + summary['timestamp'] + '/summary.json',
                                    io.BytesIO(json.dumps(summary).encode()))
-
                                                   
    log(f, 'Stored: ' + file_name)       
+   
    os.remove(file_name)
 
    log(f, 'Completed (Log) : ' + file_name + ' - ' + configuration['default_folder_name'] + ' - ' + summary['timestamp'])
 
    return
 
-
 def process_canlog(f, file_name):
-   print('Process_canlog: ' + file_name)
    parser = CanlogParser(f)
    parser.parse(file_name)
-  
+   
    return parser.getSummary()
+
+def send_message(message):
+   configuration = getConfiguration()
+
+   account = CloudStorageAccount(account_name=configuration['account_name'], 
+                                 account_key=configuration['account_key'])
+
+   service = account.create_queue_service()
+
+   service.create_queue(configuration['queue_name'])
+
+   service.put_message(configuration['queue_name'], message)
 
 def log(f, message):
    f.write(str(datetime.datetime.now()))
@@ -281,11 +331,11 @@ def retrieve():
    stream = io.BytesIO()
 
    service.get_blob_to_stream(container_name=configuration['container_name'], 
-                                   blob_name=configuration['default_folder_name'] + '/' + timestamp + '/can.json', stream=stream)
+                                   blob_name=configuration['default_folder_name'] + '/' + timestamp + '/summary.json', stream=stream)
 
    log(f, 'Retrieved - ' + timestamp)
 
-   return stream.getbuffer()
+   return stream.getvalue().decode('ascii')
 
 @views.route("/commit", methods=["GET"])
 def commit():
@@ -334,32 +384,29 @@ def process():
    output = []
    
    try:
-      print('inside process [1]')
       configuration = getConfiguration()
 
       f = open(configuration['debug_file'], 'a')
 
       guid = request.values.get('guid')
 
-      print('inside process [2]')
-
       folder = configuration['default_folder_name']
-      print('inside process [3] ' + folder)
-
+  
       blob_name = folder + '/' + guid + ".log"
 
-      print('inside process [3] ' + blob_name)
-
       file_name = request.args.get('file_name')
-      
-      print('inside process [4] ' + file_name)
-    
+         
       summary = process_canlog(f, file_name)
 
       target_blob_name = folder + '/' + summary['timestamp'] + '/' + 'can.log'
-      
-      print('inside process [4] ' + target_blob_name)
      
+      summary['status'] = 'uploaded'
+      summary['container_name'] = configuration['container_name']
+      summary['blob_name'] = target_blob_name
+      summary['account_name'] = configuration['account_name']
+      summary['queue_name'] = configuration['queue_name']
+      summary['file_name'] = 'can.log'
+   
       log(f, 'Renaming blob : ' + target_blob_name) 
       
       account = CloudStorageAccount(account_name=configuration['account_name'], 
@@ -370,8 +417,14 @@ def process():
       service.copy_blob(configuration['container_name'], target_blob_name, blob_url)
       
       log(f, 'Deleting temporary blob : ' + blob_name) 
- 
+   
+      service.delete_blob(configuration['container_name'], blob_name)
+
+      log(f, 'Storing Summary ' + blob_name) 
       store(f, file_name, summary)
+      log(f, 'Sending Message ' + configuration['queue_name']) 
+      send_message(json.dumps(summary).encode())
+      log(f, 'Sent Message ' + configuration['queue_name']) 
 
       return json.dumps(summary).encode()
 

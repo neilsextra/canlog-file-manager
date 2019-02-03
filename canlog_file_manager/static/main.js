@@ -268,81 +268,45 @@ function generateSummarySlide(folder, timestamp) {
 
 }
 
-function generateStatusSlide(folder, timestamp) {
-    var slide = 
-    "<div class='swiper-slide' style='border:2px solid #0174DF; background-color: rgba(100, 100, 100, 0.60);'> " + 
-        "<div style='position:absolute; left:3px; top:5px; right:3px;'>" +
-        "<table style='color:black;font-family: monospace; font-size: 12px;'>" +
-        "<tr><td><label style='color:white; font-family: monospace; font-size: 14px; font-weight:bold'>" + 
-        (new Date(Math.trunc(timestamp))) +
-         "</label></td>" +  
-        "</tr>" + 
-        "</table>" +
-        "</div>" +
-        "<div style='position:absolute; left:3px; bottom:-10px; right:3px; margin-bottom:-5px;'>" + 
-            " <label style='color:white; font-family: monospace; font-size: 14px; width:100%; " + 
-            " white-space: nowrap; overflow: hidden;text-overflow: ellipsis; display: inline-block;'>" +
-            folder + "</label>" +
-            "<div" + 
-            "' style='position:absolute: left:0px; right:0px; bottom:0px; height:5px; margin-bottom:-4px; margin-left:-3px; margin-right:-3px;'><p></p></div>" +
-        "</div>" +
-    "</div>";
-
-    return slide;
-
-}
-
 function generateSwiperEntry(html, folder, filename, timestamp) {
 
-    return html + (filename.startsWith('status') ? generateStatusSlide(folder, timestamp) 
-                                                 : generateSummarySlide(folder, timestamp));
+    return html + generateSummarySlide(folder, timestamp);
 
 }
 
-function display(columns, rows) {
+function displayResults(result, callback) {
+    var response = JSON.parse(result);
 
-    showMap(columns, rows);
+    var html = `<div style='position:absolute; left:20px; margin:5px; border:2px solid rgb(15, 98, 110); padding:10px;'>`;
+    
+    html += `<table style='font-size:18px;'>`;
+    html += `<tr>`
+    html += `<td><b>Can Version:</b></td>`;
+    html += `<td>&nbsp;${response.versionNumber}</td>`
+    html += `</tr>`;
+    html += `<tr>`;
+    html += `<td><b>Recording Date:</b></td>`;
+    html += `<td>&nbsp;${response.recordingDate}</td>`
+    html += `</tr>`;
+    html += `<tr>`;
+    html += `<td><b>Recording Time:</b></td>`;
+    html += `<td>&nbsp;${response.recordingTime}</td>`
+    html += `</tr>`;
+    html += `<tr>`;
+    html += `<tr><td>&nbsp;</td></tr>`;
+    html += `<tr>`;
+    html += `<td><b>Record Count:</b></td>`;
+    html += `<td>&nbsp;${response.numberOfRecords}</td>`
+    html += `</tr>`;   
+    html += `<tr>`;
+    html += `<td><b>Channels:</b></td>`;
+    html += `<td>&nbsp;${response.numberOfChannels}</td>`
+    html += `</tr>`;
+    html += `</table>`;
+    html += `</div>`;
 
-    window.setTimeout(() => {
-
-      inactivateTabs();
-
-        $('#display').css('display', 'inline-block');
-        $('#structureFrame').css('display', 'inline-block');
-        $('#tab1').css('text-decoration', 'underline');
-        $('#tab1').addClass('active');
-
-        showCharts(columns, rows);
-        
-        showGauges(columns, rows);
-
-        console.log('completed conversion');
-
-  }, 100);
-
-}
-
-function displayResults(results, callback) {
-  var csv = Papa.parse(results);
-
-  var lines = csv.data;
-  var rows = [];
-  var columns = null;
-
-  for (var line in lines) {
-
-    if (!columns) {
-        columns = lines[line];
-        console.log(columns);
-    } else {
-        rows.push(lines[line]);
-    }
-
-  }
-
-  display(columns, rows);
-
-  callback(columns, rows);
+    $('#display').css('display', 'inline-block');
+    $('#display').html(html);
 
 }
 
@@ -421,19 +385,16 @@ function refreshView(callback) {
 
 }
 
-function showMission(name, timestamp) {
+function showMission(timestamp) {
     var parameters = {
-        name: name,
         timestamp: timestamp
-
     };
 
     $('#waitDialog').css('display', 'inline-block');
 
     $.get('/retrieve', parameters, function(data) {
 
-        displayResults(data, function(columns, rows) {
-
+        displayResults(data, function() {
         });
 
         $('#' + selected).css('background-color', '');
@@ -441,6 +402,11 @@ function showMission(name, timestamp) {
         selected =  name + '-' + timestamp;
         $('#waitDialog').css('display', 'none');
     
+    }).fail(function(code, err) {
+        alert(err); 
+        $('#waitMessage').text('');
+        $('#waitDialog').css('display', 'none');
+
     });
 
 }
