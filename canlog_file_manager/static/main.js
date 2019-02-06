@@ -275,9 +275,9 @@ function generateSwiperEntry(html, folder, filename, timestamp) {
 }
 
 function displayResults(result, callback) {
-    var response = JSON.parse(result);
+   var response = JSON.parse(result);
 
-    var html = `<div style='position:absolute; left:20px; margin:5px; border:2px solid rgb(15, 98, 110); padding:10px;'>`;
+    var html = `<div style='position:absolute; left:20px; margin:5px; width:450px; border:2px solid rgb(15, 98, 110); padding:10px;'>`;
     
     html += `<table style='font-size:18px;'>`;
     html += `<tr>`
@@ -301,9 +301,55 @@ function displayResults(result, callback) {
     html += `<tr>`;
     html += `<td><b>Channels:</b></td>`;
     html += `<td>&nbsp;${response.numberOfChannels}</td>`
+    html += `</tr>`    
+    html += `<tr>`;
+    html += `<td><b>Status:</b></td>`;
+    html += `<td>&nbsp;${response.status}</td>`
     html += `</tr>`;
     html += `</table>`;
     html += `</div>`;
+    
+    if (response['run-log']) {
+
+        html += `<div style='position:absolute; left:20px; margin:5px; top:230px; width:450px; border:2px solid rgb(15, 98, 110); padding:10px;'>`;
+        html += `<table style='font-size:18px;'>`;
+        html += `<tr>`
+        html += `<td><b>Start Time:</b></td>`;
+        html += `<td>&nbsp;${response['run-log'][0]['Start-time']}</td>`
+        html += `</tr>`;
+        html += `<tr>`
+        html += `<td><b>Stop Time:</b></td>`;
+        html += `<td>&nbsp;${response['run-log'][0]['Stop-time']}</td>`
+        html += `</tr>`;
+        html += `<tr>`
+        html += `<td><b>Time Taken (millis):</b></td>`;
+        html += `<td>&nbsp;${response['run-log'][0]['Time-taken']}</td>`
+        html += `</tr>`;
+        html += `</table>`;
+        html += `</div>`;    
+    }
+
+    if (response.signals) {
+        html += `<div style='position:absolute; top:16px; left:530px; width:800px; bottom:20px; overflow:auto; margin:5px; border:2px solid rgb(15, 98, 110); padding:10px;'>`;
+ 
+        for (var iSignal in response.signals) {
+            var signal = response.signals[iSignal];
+
+            html += `<table style='font-size:14px; table-layout: fixed; width: 750px;'>`;
+            html += `<tr>`
+            html += `<td style='width:350px;'><b>${signal.signal}</b></td>`;
+            html += `<td>&nbsp;${signal.count}</td>`
+            html += `<td>&nbsp;${signal.min}</td>`
+            html += `<td>&nbsp;${signal.max}</td>`
+            html += `</tr>`;       
+        }
+
+        html += `</table>`;
+        html += `</div>`;
+        html += `</div>`;
+    
+
+    }
 
     $('#display').css('display', 'inline-block');
     $('#display').html(html);
