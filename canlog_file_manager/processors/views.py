@@ -209,7 +209,7 @@ def getConfiguration():
       'queue_name': queue_name
    }   
 
-def store(f, file_name, summary):
+def store_summary(f, file_name, summary):
    configuration = getConfiguration()
 
    log(f, 'Account Name: ' + configuration['account_name'])
@@ -225,8 +225,11 @@ def store(f, file_name, summary):
    service.create_container(configuration['container_name']) 
    
    log(f, 'Storing Content')
-
-   service.create_blob_from_stream(configuration['container_name'],  folder + '/' + summary['timestamp'] + '/summary.json',
+   summary_file =  configuration['container_name'],  folder + '/' + summary['timestamp'] + '/summary.json'
+   summary['summary_file_name'] = summary_file
+ 
+   service.create_blob_from_stream(configuration['container_name'], 
+                                   summary_file, 
                                    io.BytesIO(json.dumps(summary).encode()))
                                                   
    log(f, 'Stored: ' + file_name)       
@@ -417,7 +420,7 @@ def process():
       log(f, 'Deleting temporary blob : ' + blob_name)  
       service.delete_blob(configuration['container_name'], blob_name)
       log(f, 'Storing Summary ' + blob_name) 
-      store(f, file_name, summary)
+      store_summary(f, file_name, summary)
       log(f, 'Sending Message ' + configuration['queue_name']) 
       send_message(json.dumps(summary))
       log(f, 'Sent Message ' + configuration['queue_name']) 

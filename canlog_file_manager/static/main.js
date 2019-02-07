@@ -330,18 +330,36 @@ function displayResults(result, callback) {
     }
 
     if (response.signals) {
-        html += `<div style='position:absolute; top:16px; left:530px; width:800px; bottom:20px; overflow:auto; margin:5px; border:2px solid rgb(15, 98, 110); padding:10px;'>`;
+        html += `<div style='position:absolute; top:16px; left:530px; width:900px; bottom:20px; overflow:auto; margin:5px; border:2px solid rgb(15, 98, 110); padding:10px;'>`;
+        html += `<table style='font-size:14px;'>`;
  
         for (var iSignal in response.signals) {
             var signal = response.signals[iSignal];
 
-            html += `<table style='font-size:14px; table-layout: fixed; width: 750px;'>`;
-            html += `<tr>`
-            html += `<td style='width:350px;'><b>${signal.signal}</b></td>`;
-            html += `<td>&nbsp;${signal.count}</td>`
-            html += `<td>&nbsp;${signal.min}</td>`
-            html += `<td>&nbsp;${signal.max}</td>`
-            html += `</tr>`;       
+             for (var iSubSignal in signal) {
+ 
+                html += `<tr>`
+                html += `<td style='font-size:18px;'><b>${iSubSignal}</b></td>`;
+                html += `</tr>`
+
+                var subSignal = signal[iSubSignal];
+ 
+                for (var iValue in subSignal) {
+                    var value = subSignal[iValue];
+
+                    html += `<tr>`
+                    html += `<td width="70%" ><b>${value.signal}</b></td>`;
+                    html += `<td width="10%">&nbsp;${value.count}</td>`
+                    html += `<td width="10%">&nbsp;${value.min}</td>`
+                    html += `<td width="10%">&nbsp;${value.max}</td>`
+                    html += `</tr>`;      
+                    
+                }
+
+                html += `<tr><td>&nbsp;</td></tr>`;
+
+            }
+
         }
 
         html += `</table>`;
