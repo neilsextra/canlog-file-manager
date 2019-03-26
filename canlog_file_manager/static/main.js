@@ -386,9 +386,14 @@ function displayResults(result, callback) {
     $('#display').html(html);
 
     var height = $('#signal-container').height();
-    var tableBody = document.getElementById('table-body');
     
-    tableBody.style.height = ((height - 40) + 'px');
+    var tableBody = document.getElementById('table-body');
+
+    if (tableBody != null) {
+    
+        tableBody.style.height = ((height - 40) + 'px');
+
+    }
 
 }
 
