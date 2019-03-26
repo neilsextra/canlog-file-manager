@@ -225,11 +225,11 @@ def store_summary(f, file_name, summary):
    service.create_container(configuration['container_name']) 
    
    log(f, 'Storing Content')
-   summary_file =  configuration['container_name'],  folder + '/' + summary['timestamp'] + '/summary.json'
+   summary_file =  folder + '/' + summary['timestamp'] + '/summary.json'
    summary['summary_file_name'] = summary_file
  
    service.create_blob_from_stream(configuration['container_name'], 
-                                   summary_file, 
+                                   summary['summary_file_name'], 
                                    io.BytesIO(json.dumps(summary).encode()))
                                                   
    log(f, 'Stored: ' + file_name)       

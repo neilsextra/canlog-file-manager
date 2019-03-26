@@ -280,6 +280,7 @@ function displayResults(result, callback) {
     var html = `<div style='position:absolute; left:20px; margin:5px; width:450px; border:2px solid rgb(15, 98, 110); padding:10px;'>`;
     
     html += `<table style='font-size:18px;'>`;
+
     html += `<tr>`
     html += `<td><b>Can Version:</b></td>`;
     html += `<td>&nbsp;${response.versionNumber}</td>`
@@ -330,9 +331,21 @@ function displayResults(result, callback) {
     }
 
     if (response.signals) {
-        html += `<div style='position:absolute; top:16px; left:530px; width:900px; bottom:20px; overflow:auto; margin:5px; border:2px solid rgb(15, 98, 110); padding:10px;'>`;
-        html += `<table style='font-size:14px;'>`;
- 
+
+        html += `<div id="signal-container" style='position:absolute; overflow:hidden; top:16px; left:530px; width:600px; bottom:20px; overflow:auto; margin:5px; border:2px solid rgb(15, 98, 110); padding:10px;'>`;
+        html += `<table class="fixed_header" style='font-size:14px;'>`;
+        html += `<thead>`;
+        html += `<tr>`;
+        html += `<th>Signal</th>`;
+        html += `<th>Count</th>`;
+        html += `<th>Low Value</th>`;
+        html += `<th>High Value</th>`;
+        html += `</tr>`;
+        html += `</thead>`;
+        html += `<tbody id='table-body' style="height:400px;">`;
+        html += `<tr>`;
+        html += `<td>`;
+
         for (var iSignal in response.signals) {
             var signal = response.signals[iSignal];
 
@@ -348,10 +361,10 @@ function displayResults(result, callback) {
                     var value = subSignal[iValue];
 
                     html += `<tr>`
-                    html += `<td width="70%" ><b>${value.signal}</b></td>`;
-                    html += `<td width="10%">&nbsp;${value.count}</td>`
-                    html += `<td width="10%">&nbsp;${value.min}</td>`
-                    html += `<td width="10%">&nbsp;${value.max}</td>`
+                    html += `<td width="40%" ><b>${value.signal}</b></td>`;
+                    html += `<td width="20%">&nbsp;${value.count}</td>`
+                    html += `<td width="20%">&nbsp;${value.min}</td>`
+                    html += `<td width="20%">&nbsp;${value.max}</td>`
                     html += `</tr>`;      
                     
                 }
@@ -362,15 +375,20 @@ function displayResults(result, callback) {
 
         }
 
+        html += `</tbody>`;
         html += `</table>`;
         html += `</div>`;
         html += `</div>`;
-    
 
     }
 
     $('#display').css('display', 'inline-block');
     $('#display').html(html);
+
+    var height = $('#signal-container').height();
+    var tableBody = document.getElementById('table-body');
+    
+    tableBody.style.height = ((height - 40) + 'px');
 
 }
 
@@ -508,6 +526,16 @@ $(document).ready(function() {
       
     }
  
+    $(window).on('resize', (evt) => {
+        var height = $('#signal-container').height();
+
+        var tableBody = document.getElementById('table-body');
+
+        tableBody.style.height = ((height - 40) + 'px');
+
+
+    });
+
     $('#folders').bind('click', (e) => {
 
         buildMenu(folders);
