@@ -279,8 +279,11 @@ function displayResults(result, callback) {
 
     var html = `<div style='position:absolute; left:20px; margin:5px; width:450px; border:2px solid rgb(15, 98, 110); padding:10px;'>`;
     
-    html += `<table style='font-size:18px;'>`;
+    html += `<table style='font-size:14px;'>`;
 
+    html += `<tr>`;
+    html += `<td><b> CanLog Summary</b> </td>`;
+    html += `</tr>`;
     html += `<tr>`
     html += `<td><b>Can Version:</b></td>`;
     html += `<td>&nbsp;${response.versionNumber}</td>`
@@ -312,27 +315,54 @@ function displayResults(result, callback) {
     
     if (response['run-log']) {
 
-        html += `<div style='position:absolute; left:20px; margin:5px; top:230px; width:450px; border:2px solid rgb(15, 98, 110); padding:10px;'>`;
-        html += `<table style='font-size:18px;'>`;
-        html += `<tr>`
-        html += `<td><b>Start Time:</b></td>`;
-        html += `<td>&nbsp;${response['run-log'][0]['Start-time']}</td>`
+        html += `<div style='position:absolute; left:20px; margin:5px; top:218px; width:450px; border:2px solid rgb(15, 98, 110); padding:10px;'>`;
+        html += `<table style='font-size:14px;'>`;
+        html += `<tr>`;
+        html += `<td><b> Mission Statistics</b> </td>`;
+        html += `</tr>`;
+        html += `<td style='font-size:14px;'><b>Start Time:</b></td>`;
+        html += `<td style='font-size:12px;'>&nbsp;${response['run-log'][0]['Start-time']}</td>`
+        html += `</tr>`;
+        html += `<tr>`;
+        html += `<td style='font-size:14px;'><b>Stop Time:</b></td>`;
+        html += `<td style='font-size:12px;'d>&nbsp;${response['run-log'][0]['Stop-time']}</td>`;
+        html += `</tr>`;
+        html += `<tr>`;
+        html += `<td style='font-size:14px;'><b>Start Clock:</b></td>`;
+        html += `<td style='font-size:12px;'>&nbsp;${response['run-log'][0]['Start-clock']}</td>`
         html += `</tr>`;
         html += `<tr>`
-        html += `<td><b>Stop Time:</b></td>`;
-        html += `<td>&nbsp;${response['run-log'][0]['Stop-time']}</td>`
-        html += `</tr>`;
-        html += `<tr>`
-        html += `<td><b>Time Taken (millis):</b></td>`;
-        html += `<td>&nbsp;${response['run-log'][0]['Time-taken']}</td>`
+        html += `<td style='font-size:14px;'><b>Stop Clock:</b></td>`;
+        html += `<td style='font-size:12px;'>&nbsp;${response['run-log'][0]['Stop-clock']}</td>`
         html += `</tr>`;
         html += `</table>`;
-        html += `</div>`;    
+        html += `</div>`; 
+ 
+        html += `<div style='position:absolute; left:20px; margin:5px; top:360px; width:450px; border:2px solid rgb(15, 98, 110); padding:10px;'>`;
+        html += `<table style='font-size:14px;'>`;
+        html += `<tr>`      
+        html += `<td><b> Job Statistics</b> </td>`;
+        html += `</tr>`;
+        html += `<tr>`;
+        html += `<td style='font-size:14px;'><b>Start Time:</b></td>`;
+        html += `<td style='font-size:12px;'>&nbsp;${new Date(parseInt(response['run-log'][0]['job-start-time']))}</td>`;
+        html += `</tr>`;
+        html += `<tr>`;
+        html += `<td style='font-size:14px;'><b>Start Time:</b></td>`;
+        html += `<td style='font-size:12px;'>&nbsp;${new Date(parseInt(response['run-log'][0]['job-stop-time']))}</td>`;
+        html += `</tr>`;
+        html += `<tr>`;
+        html += `<td style='font-size:12px;'><b>Time Taken (millis):</b></td>`;
+        html += `<td style='font-size:12px;'>&nbsp;${parseInt(response['run-log'][0]['job-time-taken'])/1000} secs</td>`;
+        html += `</tr>`;
+        html += `</table>`;
+        html += `</div>`;
+
     }
 
     if (response.signals) {
 
-        html += `<div id="signal-container" style='position:absolute; overflow:hidden; top:16px; left:530px; width:600px; bottom:20px; overflow:auto; margin:5px; border:2px solid rgb(15, 98, 110); padding:10px;'>`;
+        html += `<div id="signal-container" style='position:absolute; overflow:hidden; top:16px; left:530px; width:600px; bottom:16px; overflow:auto; margin:5px; border:2px solid rgb(15, 98, 110); padding:10px;'>`;
         html += `<table class="fixed_header" style='font-size:14px;'>`;
         html += `<thead>`;
         html += `<tr>`;
